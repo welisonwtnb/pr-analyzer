@@ -1,0 +1,70 @@
+name: Analyze Pull Request (Reusable and Cross-Repository)
+
+on:
+  workflow_call:
+    inputs:
+      repository:
+        description: 'The full name of the repository where the PR exists (target repo).'
+        required: true
+        type: string
+      pull_request_number:
+        description: 'The pull request number to analyze.'
+        required: true
+        type: number
+      pr_head_ref:
+        description: 'The branch name of the head of the pull request.'
+        required: true
+        type: string
+      pr_head_repo:
+        description: 'The full name of the repository where the head branch of the PR resides.'
+        required: true
+        type: string
+    secrets:
+      GENAI_API_KEY:
+        required: true
+      PR_ANALYZER_PAT:
+        required: true
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Python Analyzer Repo
+        uses: actions/checkout@v4
+        with:
+          repository: welisonwtnb/pr-analyzer
+          token: ${{ secrets.PR_ANALYZER_PAT }}
+          path: './python_analyzer_repo'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        working-directory: './python_analyzer_repo'
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Checkout Target Repository PR Head Branch
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.pr_head_repo }}
+          ref: ${{ inputs.pr_head_ref }}
+          path: './target_repo_code'
+          token: ${{ secrets.PR_ANALYZER_PAT }}
+
+      - name: Run PR Analyzer
+        working-directory: './python_analyzer_repo'
+        env:
+          GITHUB_TOKEN: ${{ secrets.PR_ANALYZER_PAT }}
+          GENAI_API_KEY: ${{ secrets.GENAI_API_KEY }}
+          TARGET_REPO_PATH: '../target_repo_code'
+          TARGET_REPO_NAME: ${{ inputs.repository }}
+          TARGET_PR_NUMBER: ${{ inputs.pull_request_number }}
+        run: |
+          python main.py \
+            --repo-path "${TARGET_REPO_PATH}" \
+            --repo-name "${TARGET_REPO_NAME}" \
+            --pr-number "${TARGET_PR_NUMBER}"

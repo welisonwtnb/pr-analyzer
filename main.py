@@ -85,7 +85,6 @@ def main():
     parser.add_argument("--repo-path", required=True, help="Path to the checked out target repository code.")
     args = parser.parse_args()
 
-    # Environment variables
     github_token = os.getenv("GITHUB_TOKEN")
     genai_api_key = os.getenv("GENAI_API_KEY")
 
@@ -96,7 +95,6 @@ def main():
         print("Error: GENAI_API_KEY environment variable not set.")
         return
 
-    # Parse owner and repo from the full repository name
     try:
         owner, repo_name_only = args.repo_name.split("/")
     except ValueError:
@@ -109,19 +107,16 @@ def main():
     print(f"--- Analyzing PR #{pr_number} in repository: {owner}/{repo_name_only} ---")
     print(f"Code checked out to: {target_repo_path}")
 
-    # Fetch PR details for title, etc.
     pr_details = get_pr_details(owner, repo_name_only, pr_number, github_token)
     if not pr_details:
-        return # Exit if PR details cannot be fetched
+        return
 
     pr_title = pr_details.get("title", "No Title Available")
 
-    # Get the diff for the PR
     diff = get_pr_diff(owner, repo_name_only, pr_number, github_token)
     if not diff:
-        return # Exit if diff cannot be obtained
+        return
 
-    # Generate prompt for the AI model
     prompt = generate_prompt(repo_name_only, diff, pr_title, pr_number)
 
     try:
@@ -134,9 +129,8 @@ def main():
         ai_comment = result.text
     except Exception as e:
         print(f"Error generating AI content: {e}")
-        ai_comment = f"Automated analysis failed: {e}" # Fallback comment
+        ai_comment = f"Automated analysis failed: {e}"
 
-    # Post the AI-generated comment back to the original PR
     post_pr_comment(owner, repo_name_only, pr_number, github_token, ai_comment)
     print("-" * 80)
 
